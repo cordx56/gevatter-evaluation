@@ -1,4 +1,4 @@
-# An Evaluation Artifacts of [Gevatter](https://github.com/cordx56/gevatter)
+# An Evaluation Artifact of [Gevatter](https://github.com/cordx56/gevatter)
 
 Fetch N (default = 100) crates from crates.io and run `cargo gevatter check -- --workspace`.
 
