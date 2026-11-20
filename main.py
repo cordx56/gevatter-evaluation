@@ -17,7 +17,12 @@ USER_AGENT = "Yuki Okamoto <cord@x56.cx>"
 HTTP_TIMEOUT_SECONDS = 60
 TMP_ROOT = Path("/tmp")
 RESULTS_DIR = Path("results")
+DOWNLOADS_PATH = Path("crates")
+EDITED_PATH = Path("edited")
+CRATES_JSON = Path("crates.json")
+
 CHECK_COMMAND = ["cargo", "gevatter", "check", "--", "--workspace"]
+FIX_COMMAND = ["cargo", "gevatter", "fix", "--", "--workspace", "--allow-no-vcs"]
 
 CRATES_API = "https://crates.io/api/v1/crates"
 CRATES_DOWNLOADS = "https://static.crates.io/crates"
@@ -61,6 +66,7 @@ def check_crate(rank: int, name: str, version: str, downloads: int):
     started_at = datetime.now(UTC)
     started = time.monotonic()
     exit_code = None
+    edited = False
     fail = False
 
     with tempfile.TemporaryFile(dir=TMP_ROOT) as log:
@@ -75,18 +81,27 @@ def check_crate(rank: int, name: str, version: str, downloads: int):
                     shutil.copyfileobj(response, file)
 
                 with tarfile.open(archive_path, "r:gz") as archive:
-                    archive.extractall(source_dir, filter="data")
-                crate_dir = source_dir / package
+                    archive.extractall(DOWNLOADS_PATH, filter="data")
+                crate_dir = DOWNLOADS_PATH / package
+                with tarfile.open(archive_path, "r:gz") as archive:
+                    archive.extractall(EDITED_PATH, filter="data")
+                edited_dir = EDITED_PATH / package
 
                 exit_code = subprocess.run(
                     CHECK_COMMAND, cwd=crate_dir, stdout=log, stderr=subprocess.STDOUT
                 ).returncode
+
+                if exit_code != 0:
+                    edited = subprocess.run(FIX_COMMAND, cwd=edited_dir).returncode == 0
+                else:
+                    shutil.rmtree(edited_dir)
         except Exception as error:
             fail = True
             log.write(f"\n  (Python): {error}\n".encode("utf-8"))
 
         header = (
             f"Exit code: {exit_code}\n"
+            f"Edited: {edited}\n"
             f"Crate: {name}\n"
             f"Version: {version}\n"
             f"Rank: {rank}\n"
@@ -110,9 +125,23 @@ def check_crate(rank: int, name: str, version: str, downloads: int):
     return not fail
 
 
+def load_crates_json():
+    with open(CRATES_JSON) as f:
+        data = json.load(f)
+    return list(map(lambda x: Crate(x["name"], x["version"], x["downloads"]), data))
+def write_crates_json(crates: list[Crate]):
+    data = list(map(lambda x: { "name": x.name, "version": x.version, "downloads": x.downloads }, crates))
+    with open(CRATES_JSON, "w") as f:
+        json.dump(data, f)
+
+
 def main() -> int:
     try:
-        crates = top_crates()
+        if CRATES_JSON.is_file():
+            crates = load_crates_json()
+        else:
+            crates = top_crates()
+            write_crates_json(crates)
     except Exception as error:
         print(f"crate get: {error}", file=sys.stderr)
         return 1
