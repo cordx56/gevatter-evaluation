@@ -2,6 +2,7 @@ import json
 import re
 import shutil
 import subprocess
+import os
 import sys
 import tarfile
 import tempfile
@@ -13,7 +14,10 @@ from urllib.request import Request, urlopen
 from zlib import error as ZlibError
 
 TOP_N = 100
-USER_AGENT = "Yuki Okamoto <cord@x56.cx>"
+USER_AGENT = os.getenv("UA") or ""
+if len(USER_AGENT) == 0:
+    print("set your User-Agent! via `UA` env var", file=sys.stderr)
+    sys.exit(1)
 HTTP_TIMEOUT_SECONDS = 60
 TMP_ROOT = Path("/tmp")
 RESULTS_DIR = Path("results")

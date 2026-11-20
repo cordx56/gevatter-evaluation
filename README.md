@@ -5,9 +5,11 @@ Fetch N (default = 100) crates from crates.io and run `cargo gevatter check -- -
 ## How to Run
 
 ```bash
+export UA="your name <your@email>"
 python main.py
 ```
 
+Setting `UA` (User-Agent) is required to use crates.io API.
 Fetched crates are saved in `crates/` directory.
 Edited crates are saved in `edited/` directory if Gevatter suggests.
 
